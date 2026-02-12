@@ -1,14 +1,19 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GqlExecutionContext } from '@nestjs/graphql';
+import { Reflector } from '@nestjs/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { AuthUser } from '../types/auth-user.type';
 
 @Injectable()
 export class GqlAuthGuard implements CanActivate {
   private readonly supabaseClient: SupabaseClient;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly reflector: Reflector,
+  ) {
     const supabaseUrl = configService.get<string>('SUPABASE_URL');
     const supabaseKey =
       configService.get<string>('SUPABASE_ANON_KEY') ??
@@ -27,6 +32,18 @@ export class GqlAuthGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (context.getType<'graphql' | string>() !== 'graphql') {
+      return true;
+    }
+
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
+
     const gqlContext = GqlExecutionContext.create(context);
     const request = gqlContext.getContext<{
       req?: {
