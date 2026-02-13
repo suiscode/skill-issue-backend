@@ -3,20 +3,46 @@ enum TeamSide {
   B
 }
 
+type GameLobbyRule {
+  configMode: String!
+  fixedTeamCount: Int
+  fixedPlayersPerTeam: Int
+  minTeamCount: Int
+  maxTeamCount: Int
+  minPlayersPerTeam: Int
+  maxPlayersPerTeam: Int
+  allowCustomTeams: Boolean!
+  allowCustomPlayersPerTeam: Boolean!
+  minWagerCents: Int!
+  maxWagerCents: Int!
+}
+
+type Game {
+  id: ID!
+  key: String!
+  name: String!
+  category: String!
+  isActive: Boolean!
+  lobbyRule: GameLobbyRule!
+}
+
 type Lobby {
   id: ID!
+  gameId: ID!
   game: String!
-  region: String!
   stakePerPlayerCents: Int!
+  teamCount: Int!
+  playersPerTeam: Int!
   teamAUserIds: [String!]!
   teamBUserIds: [String!]!
   status: String!
 }
 
 input CreateLobbyInput {
-  game: String!
-  region: String!
+  gameId: ID!
   stakePerPlayerCents: Int!
+  teamCount: Int
+  playersPerTeam: Int
 }
 
 input JoinLobbyInput {
@@ -25,6 +51,7 @@ input JoinLobbyInput {
 }
 
 extend type Query {
+  games: [Game!]!
   lobbies: [Lobby!]!
 }
 

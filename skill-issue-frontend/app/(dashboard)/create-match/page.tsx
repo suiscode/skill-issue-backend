@@ -1,10 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { Swords, Trophy, Users, DollarSign, Globe } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Swords, Trophy, Users, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { TopNavbar } from "@/components/top-navbar"
+import {
+  useCreateLobbyMutation,
+  useGamesQuery,
+} from "@/lib/__generated__/apollo-hooks"
 import {
   Select,
   SelectContent,
@@ -14,27 +19,88 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 
-const games = [
-  { value: "valorant", label: "Valorant" },
-  { value: "cs2", label: "CS2" },
-  { value: "dota2", label: "Dota 2" },
-  { value: "league", label: "League of Legends" },
-  { value: "overwatch", label: "Overwatch 2" },
-]
-
-const regions = [
-  { value: "na-east", label: "NA East" },
-  { value: "na-west", label: "NA West" },
-  { value: "eu-west", label: "EU West" },
-  { value: "eu-east", label: "EU East" },
-  { value: "asia", label: "Asia Pacific" },
-]
+const WAGER_PRESETS = [5000, 10000, 20000] as const
 
 export default function CreateMatchPage() {
-  const [betAmount, setBetAmount] = useState([25])
-  const [selectedGame, setSelectedGame] = useState("")
+  const router = useRouter()
+  const { data, loading: loadingGames, error: gamesError } = useGamesQuery()
+  const [createLobby, { loading: creatingLobby }] = useCreateLobbyMutation()
 
-  const potentialWinnings = betAmount[0] * 10 * 0.9
+  const [betAmount, setBetAmount] = useState(5000)
+  const [selectedWagerOption, setSelectedWagerOption] = useState<number | "custom">(5000)
+  const [selectedGameId, setSelectedGameId] = useState("")
+  const [teamCount, setTeamCount] = useState(2)
+  const [playersPerTeam, setPlayersPerTeam] = useState(5)
+  const [submitError, setSubmitError] = useState("")
+
+  const games = useMemo(() => data?.games ?? [], [data?.games])
+  const selectedGame = games.find((game) => game.id === selectedGameId)
+  const selectedRule = selectedGame?.lobbyRule
+  const isCustomConfig = selectedRule?.configMode === "CUSTOM_BR"
+  const minWager = selectedRule?.minWagerCents ?? 100
+  const maxWager = selectedRule?.maxWagerCents ?? 100000
+
+  useEffect(() => {
+    if (!selectedGameId && games.length > 0) {
+      setSelectedGameId(games[0].id)
+    }
+  }, [games, selectedGameId])
+
+  useEffect(() => {
+    if (!selectedRule) {
+      return
+    }
+
+    const fallbackTeamCount = selectedRule.fixedTeamCount ?? selectedRule.minTeamCount ?? 2
+    const fallbackPlayersPerTeam =
+      selectedRule.fixedPlayersPerTeam ?? selectedRule.minPlayersPerTeam ?? 5
+
+    setTeamCount(fallbackTeamCount)
+    setPlayersPerTeam(fallbackPlayersPerTeam)
+    if (betAmount < minWager || betAmount > maxWager) {
+      const firstValidPreset =
+        WAGER_PRESETS.find((preset) => preset >= minWager && preset <= maxWager) ?? minWager
+      setBetAmount(firstValidPreset)
+      setSelectedWagerOption(
+        WAGER_PRESETS.includes(firstValidPreset as (typeof WAGER_PRESETS)[number])
+          ? firstValidPreset
+          : "custom",
+      )
+    }
+  }, [selectedRule, betAmount, minWager, maxWager])
+
+  const totalPool = betAmount * teamCount * playersPerTeam
+  const potentialWinnings = totalPool * 0.9
+
+  const onCreateLobby = async () => {
+    if (!selectedGame || !selectedRule) {
+      setSubmitError("Please select an active game.")
+      return
+    }
+
+    try {
+      setSubmitError("")
+      const result = await createLobby({
+        variables: {
+          input: {
+            gameId: selectedGame.id,
+            stakePerPlayerCents: Math.round(betAmount),
+            teamCount: isCustomConfig ? teamCount : undefined,
+            playersPerTeam: isCustomConfig ? playersPerTeam : undefined,
+          },
+        },
+      })
+      const lobbyId = result.data?.createLobby.id
+      if (!lobbyId) {
+        throw new Error("No lobby created.")
+      }
+      router.push(`/lobby/${lobbyId}`)
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to create lobby.",
+      )
+    }
+  }
 
   return (
     <>
@@ -46,7 +112,7 @@ export default function CreateMatchPage() {
               Create a New Match
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Configure a beta match template. Real payout and escrow rails are coming next.
+              Select a game first, then configure the lobby based on game rules.
             </p>
           </div>
 
@@ -59,41 +125,62 @@ export default function CreateMatchPage() {
                   <Swords className="h-4 w-4 text-primary" />
                   Game
                 </label>
-                <Select value={selectedGame} onValueChange={setSelectedGame}>
+                <Select value={selectedGameId} onValueChange={setSelectedGameId}>
                   <SelectTrigger className="border-border bg-secondary text-foreground">
-                    <SelectValue placeholder="Select a game" />
+                    <SelectValue placeholder={loadingGames ? "Loading..." : "Select a game"} />
                   </SelectTrigger>
                   <SelectContent>
                     {games.map((game) => (
-                      <SelectItem key={game.value} value={game.value}>
-                        {game.label}
+                      <SelectItem key={game.id} value={game.id}>
+                        {game.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {gamesError ? (
+                  <p className="mt-2 text-xs text-destructive">
+                    Failed to load games from backend.
+                  </p>
+                ) : null}
               </div>
 
               {/* Format */}
               <div className="rounded-xl border border-border bg-card p-5">
                 <label className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
                   <Users className="h-4 w-4 text-primary" />
-                  Match Format
+                  Team Configuration
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {["1v1", "3v3", "5v5"].map((format) => (
-                    <button
-                      key={format}
-                      type="button"
-                      className={`rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
-                        format === "5v5"
-                          ? "border-primary bg-primary/10 text-primary glow-sm"
-                          : "border-border bg-secondary text-muted-foreground hover:border-border hover:text-foreground"
-                      }`}
-                    >
-                      {format}
-                    </button>
-                  ))}
-                </div>
+                {isCustomConfig ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-xs text-muted-foreground">Team count</p>
+                      <Slider
+                        value={[teamCount]}
+                        onValueChange={(value) => setTeamCount(value[0])}
+                        min={selectedRule?.minTeamCount ?? 2}
+                        max={selectedRule?.maxTeamCount ?? 10}
+                        step={1}
+                      />
+                      <p className="mt-2 text-sm text-foreground">{teamCount} teams</p>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs text-muted-foreground">Players per team</p>
+                      <Slider
+                        value={[playersPerTeam]}
+                        onValueChange={(value) => setPlayersPerTeam(value[0])}
+                        min={selectedRule?.minPlayersPerTeam ?? 1}
+                        max={selectedRule?.maxPlayersPerTeam ?? 4}
+                        step={1}
+                      />
+                      <p className="mt-2 text-sm text-foreground">{playersPerTeam} players</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">
+                    Fixed mode: {selectedRule?.fixedTeamCount ?? 2} teams x{" "}
+                    {selectedRule?.fixedPlayersPerTeam ?? 5} players per team
+                  </div>
+                )}
               </div>
 
               {/* Bet Amount */}
@@ -104,48 +191,65 @@ export default function CreateMatchPage() {
                 </label>
                 <div className="mb-3 flex items-center justify-between">
                   <span className="font-mono text-2xl font-bold text-foreground">
-                    ${betAmount[0]}
+                    {betAmount.toLocaleString()} MNT
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    $1 - $100
+                    {minWager.toLocaleString()} - {maxWager.toLocaleString()} MNT
                   </span>
                 </div>
-                <Slider
-                  value={betAmount}
-                  onValueChange={setBetAmount}
-                  min={1}
-                  max={100}
-                  step={1}
-                  className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_.range]:bg-primary"
-                />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {WAGER_PRESETS.map((preset) => (
+                    <Button
+                      key={preset}
+                      type="button"
+                      variant={selectedWagerOption === preset ? "default" : "outline"}
+                      onClick={() => {
+                        setSelectedWagerOption(preset)
+                        setBetAmount(Math.min(maxWager, Math.max(minWager, preset)))
+                      }}
+                    >
+                      {preset.toLocaleString()}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={selectedWagerOption === "custom" ? "default" : "outline"}
+                    onClick={() => setSelectedWagerOption("custom")}
+                  >
+                    Custom
+                  </Button>
+                </div>
+                {selectedWagerOption === "custom" ? (
+                  <div className="mt-3">
+                    <Input
+                      type="number"
+                      min={minWager}
+                      max={maxWager}
+                      value={betAmount}
+                      onChange={(event) => {
+                        const value = Number(event.target.value)
+                        setBetAmount(Number.isNaN(value) ? minWager : value)
+                      }}
+                      onBlur={() => {
+                        const clamped = Math.min(maxWager, Math.max(minWager, betAmount))
+                        setBetAmount(clamped)
+                      }}
+                      placeholder="Enter custom wager in MNT"
+                    />
+                  </div>
+                ) : null}
               </div>
 
-              {/* Region */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <label className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Globe className="h-4 w-4 text-primary" />
-                  Region
-                </label>
-                <Select defaultValue="na-east">
-                  <SelectTrigger className="border-border bg-secondary text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((region) => (
-                      <SelectItem key={region.value} value={region.value}>
-                        {region.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
+              {submitError ? (
+                <p className="text-sm text-destructive">{submitError}</p>
+              ) : null}
               <Button
-                asChild
                 size="lg"
                 className="glow-md bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                onClick={onCreateLobby}
+                disabled={creatingLobby || loadingGames || !selectedGame}
               >
-                <Link href="/lobby/new-match">Create Beta Lobby</Link>
+                {creatingLobby ? "Creating Lobby..." : "Create Lobby"}
               </Button>
             </div>
 
@@ -163,7 +267,7 @@ export default function CreateMatchPage() {
                     <span className="text-xs text-muted-foreground">Game</span>
                     <span className="text-sm font-medium text-foreground">
                       {selectedGame
-                        ? games.find((g) => g.value === selectedGame)?.label
+                        ? selectedGame.name
                         : "Not selected"}
                     </span>
                   </div>
@@ -172,7 +276,7 @@ export default function CreateMatchPage() {
                       Format
                     </span>
                     <span className="text-sm font-medium text-foreground">
-                      5v5
+                      {teamCount} teams x {playersPerTeam}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-border pb-3">
@@ -180,7 +284,7 @@ export default function CreateMatchPage() {
                       Bet / Player
                     </span>
                     <span className="font-mono text-sm font-medium text-foreground">
-                      ${betAmount[0]}
+                      {betAmount.toLocaleString()} MNT
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-border pb-3">
@@ -188,7 +292,7 @@ export default function CreateMatchPage() {
                       Total Pool
                     </span>
                     <span className="font-mono text-sm font-medium text-foreground">
-                      ${betAmount[0] * 10}
+                      {totalPool.toLocaleString()} MNT
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-border pb-3">
@@ -204,13 +308,13 @@ export default function CreateMatchPage() {
                       Potential Winnings
                     </span>
                     <span className="font-mono text-lg font-bold text-primary">
-                      ${potentialWinnings.toFixed(2)}
+                      {Math.round(potentialWinnings).toLocaleString()} MNT
                     </span>
                   </div>
                 </div>
                 <p className="mt-4 text-[10px] text-muted-foreground leading-relaxed">
-                  Preview values are non-financial placeholders during beta. Final
-                  payout logic ships after verification and wallet modules are complete.
+                  Tactical/MOBA games use fixed team sizes. Battle-royale games can
+                  use custom teams and players per team within backend-defined limits.
                 </p>
               </div>
             </div>
