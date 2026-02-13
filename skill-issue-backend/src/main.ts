@@ -4,6 +4,9 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app: INestApplication = await NestFactory.create(AppModule);
+  const normalizeOrigin = (origin: string): string =>
+    origin.trim().replace(/\/+$/, '').toLowerCase();
+
   const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
@@ -21,15 +24,27 @@ async function bootstrap() {
       : isProduction
         ? []
         : defaultDevOrigins;
-  const corsOrigin =
-    allowedOrigins.length === 0
-      ? false
-      : allowedOrigins.includes('*')
-        ? true
-        : allowedOrigins;
+  const allowAllOrigins = allowedOrigins.includes('*');
+  const normalizedAllowedOrigins = new Set(
+    allowedOrigins
+      .filter((origin) => origin !== '*')
+      .map((origin) => normalizeOrigin(origin)),
+  );
 
   app.enableCors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowAllOrigins || normalizedAllowedOrigins.has(normalizeOrigin(origin))) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Origin not allowed by CORS'));
+    },
     credentials: true,
   });
 
