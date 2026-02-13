@@ -27,6 +27,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/components/auth-provider"
 
 const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -38,6 +39,8 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { user, signOut } = useAuth()
+  const initials = user?.username.slice(0, 2).toUpperCase() ?? "PX"
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -101,19 +104,24 @@ export function AppSidebar() {
       <SidebarFooter className="px-4 py-4">
         <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
           <Avatar className="h-8 w-8 border border-border">
-            <AvatarImage src="https://api.dicebear.com/7.x/thumbs/svg?seed=arena" />
+            <AvatarImage
+              src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${user?.username ?? "arena"}`}
+            />
             <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-              PX
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-1 flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-medium text-foreground">
-              ProXenon
+              {user?.username ?? "Player"}
             </span>
-            <span className="text-xs text-muted-foreground">Rank: Diamond</span>
+            <span className="text-xs text-muted-foreground">
+              {user?.email ?? "No email"}
+            </span>
           </div>
           <button
             type="button"
+            onClick={signOut}
             className="text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:hidden"
           >
             <LogOut className="h-4 w-4" />

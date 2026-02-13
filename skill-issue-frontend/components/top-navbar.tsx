@@ -1,11 +1,22 @@
 "use client"
 
+import Link from "next/link"
 import { Bell, Search } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/components/auth-provider"
 
 export function TopNavbar({ title }: { title: string }) {
+  const { user, signOut } = useAuth()
+  const initials = user?.username.slice(0, 2).toUpperCase() ?? "PX"
+
   return (
     <header className="flex h-14 items-center justify-between border-b border-border px-4 lg:px-6">
       <div className="flex items-center gap-3">
@@ -37,12 +48,24 @@ export function TopNavbar({ title }: { title: string }) {
           >
             $247.50
           </Badge>
-          <Avatar className="h-7 w-7 border border-border">
-            <AvatarImage src="https://api.dicebear.com/7.x/thumbs/svg?seed=arena" />
-            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-              PX
-            </AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button">
+                <Avatar className="h-7 w-7 border border-border">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${user?.username ?? "arena"}`} />
+                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/profile">View profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={signOut}>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

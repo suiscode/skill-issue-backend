@@ -40,7 +40,7 @@ export function HeroSection() {
             size="lg"
             className="glow-md bg-primary text-primary-foreground hover:bg-primary/90 px-8 text-base font-semibold"
           >
-            <Link href="/create-match">
+            <Link href="/signup">
               Create Match
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
@@ -51,7 +51,7 @@ export function HeroSection() {
             size="lg"
             className="border-border bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground px-8 text-base"
           >
-            <Link href="/dashboard">Join Match</Link>
+            <Link href="/signin">Join Match</Link>
           </Button>
         </div>
       </div>

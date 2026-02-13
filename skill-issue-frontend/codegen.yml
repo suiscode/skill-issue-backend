@@ -1,0 +1,15 @@
+schema:
+  - ../skill-issue-backend/src/modules/**/*.graphql
+documents:
+  - ./graphql/**/*.graphql
+generates:
+  ./lib/__generated__/apollo-hooks.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typescript-react-apollo
+    config:
+      withHooks: true
+      withHOC: false
+      withComponent: false
+      reactApolloVersion: 3

@@ -1,6 +1,8 @@
 import React from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
+import { AppApolloProvider } from "@/components/apollo-provider"
+import { AuthProvider } from "@/components/auth-provider"
 
 import "./globals.css"
 
@@ -34,7 +36,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
-        {children}
+        <AuthProvider>
+          <AppApolloProvider>{children}</AppApolloProvider>
+        </AuthProvider>
       </body>
     </html>
   )
