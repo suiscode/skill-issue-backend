@@ -9,9 +9,15 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { TeamSide } from '../../common/constants/team-side.enum';
 import { DRIZZLE_DB } from '../../database/database.constants';
-import { lobbiesTable, lobbyPlayersTable } from '../../database/schema';
+import {
+  gameLobbyRulesTable,
+  gamesTable,
+  lobbiesTable,
+  lobbyPlayersTable,
+} from '../../database/schema';
 import { CreateLobbyInput } from './dto/create-lobby.input';
 import { JoinLobbyInput } from './dto/join-lobby.input';
+import { GameType } from './entities/game.type';
 import { LobbyType } from './entities/lobby.type';
 import type { LobbyRepository } from './lobby.repository';
 
@@ -22,17 +28,132 @@ export class DrizzleLobbyRepository implements LobbyRepository {
     private readonly db: NodePgDatabase,
   ) {}
 
+  async listGames(): Promise<GameType[]> {
+    const rows = await this.db
+      .select({
+        id: gamesTable.id,
+        key: gamesTable.key,
+        name: gamesTable.name,
+        category: gamesTable.category,
+        isActive: gamesTable.isActive,
+        configMode: gameLobbyRulesTable.configMode,
+        fixedTeamCount: gameLobbyRulesTable.fixedTeamCount,
+        fixedPlayersPerTeam: gameLobbyRulesTable.fixedPlayersPerTeam,
+        minTeamCount: gameLobbyRulesTable.minTeamCount,
+        maxTeamCount: gameLobbyRulesTable.maxTeamCount,
+        minPlayersPerTeam: gameLobbyRulesTable.minPlayersPerTeam,
+        maxPlayersPerTeam: gameLobbyRulesTable.maxPlayersPerTeam,
+        allowCustomTeams: gameLobbyRulesTable.allowCustomTeams,
+        allowCustomPlayersPerTeam: gameLobbyRulesTable.allowCustomPlayersPerTeam,
+        minWagerCents: gameLobbyRulesTable.minWagerCents,
+        maxWagerCents: gameLobbyRulesTable.maxWagerCents,
+      })
+      .from(gamesTable)
+      .innerJoin(gameLobbyRulesTable, eq(gameLobbyRulesTable.gameId, gamesTable.id))
+      .where(eq(gamesTable.isActive, true));
+
+    return rows.map((row) => ({
+      id: row.id,
+      key: row.key,
+      name: row.name,
+      category: row.category,
+      isActive: row.isActive,
+      lobbyRule: {
+        configMode: row.configMode,
+        fixedTeamCount: row.fixedTeamCount ?? undefined,
+        fixedPlayersPerTeam: row.fixedPlayersPerTeam ?? undefined,
+        minTeamCount: row.minTeamCount ?? undefined,
+        maxTeamCount: row.maxTeamCount ?? undefined,
+        minPlayersPerTeam: row.minPlayersPerTeam ?? undefined,
+        maxPlayersPerTeam: row.maxPlayersPerTeam ?? undefined,
+        allowCustomTeams: row.allowCustomTeams,
+        allowCustomPlayersPerTeam: row.allowCustomPlayersPerTeam,
+        minWagerCents: row.minWagerCents,
+        maxWagerCents: row.maxWagerCents,
+      },
+    }));
+  }
+
   async create(
     input: CreateLobbyInput,
     hostUserId: string,
   ): Promise<LobbyType> {
+    const [gameConfig] = await this.db
+      .select({
+        id: gamesTable.id,
+        key: gamesTable.key,
+        name: gamesTable.name,
+        isActive: gamesTable.isActive,
+        configMode: gameLobbyRulesTable.configMode,
+        fixedTeamCount: gameLobbyRulesTable.fixedTeamCount,
+        fixedPlayersPerTeam: gameLobbyRulesTable.fixedPlayersPerTeam,
+        minTeamCount: gameLobbyRulesTable.minTeamCount,
+        maxTeamCount: gameLobbyRulesTable.maxTeamCount,
+        minPlayersPerTeam: gameLobbyRulesTable.minPlayersPerTeam,
+        maxPlayersPerTeam: gameLobbyRulesTable.maxPlayersPerTeam,
+        allowCustomTeams: gameLobbyRulesTable.allowCustomTeams,
+        allowCustomPlayersPerTeam: gameLobbyRulesTable.allowCustomPlayersPerTeam,
+        minWagerCents: gameLobbyRulesTable.minWagerCents,
+        maxWagerCents: gameLobbyRulesTable.maxWagerCents,
+      })
+      .from(gamesTable)
+      .innerJoin(gameLobbyRulesTable, eq(gameLobbyRulesTable.gameId, gamesTable.id))
+      .where(eq(gamesTable.id, input.gameId))
+      .limit(1);
+
+    if (!gameConfig || !gameConfig.isActive) {
+      throw new BadRequestException('Selected game is invalid or inactive');
+    }
+
+    if (
+      input.stakePerPlayerCents < gameConfig.minWagerCents ||
+      input.stakePerPlayerCents > gameConfig.maxWagerCents
+    ) {
+      throw new BadRequestException('Wager amount is outside allowed range');
+    }
+
+    let resolvedTeamCount = gameConfig.fixedTeamCount ?? input.teamCount;
+    let resolvedPlayersPerTeam =
+      gameConfig.fixedPlayersPerTeam ?? input.playersPerTeam;
+
+    if (gameConfig.configMode === 'FIXED') {
+      resolvedTeamCount = gameConfig.fixedTeamCount ?? 2;
+      resolvedPlayersPerTeam = gameConfig.fixedPlayersPerTeam ?? 5;
+    }
+
+    if (!resolvedTeamCount || !resolvedPlayersPerTeam) {
+      throw new BadRequestException(
+        'teamCount and playersPerTeam are required for this game',
+      );
+    }
+
+    if (
+      gameConfig.allowCustomTeams &&
+      ((gameConfig.minTeamCount && resolvedTeamCount < gameConfig.minTeamCount) ||
+        (gameConfig.maxTeamCount && resolvedTeamCount > gameConfig.maxTeamCount))
+    ) {
+      throw new BadRequestException('teamCount is outside allowed range');
+    }
+
+    if (
+      gameConfig.allowCustomPlayersPerTeam &&
+      ((gameConfig.minPlayersPerTeam &&
+        resolvedPlayersPerTeam < gameConfig.minPlayersPerTeam) ||
+        (gameConfig.maxPlayersPerTeam &&
+          resolvedPlayersPerTeam > gameConfig.maxPlayersPerTeam))
+    ) {
+      throw new BadRequestException('playersPerTeam is outside allowed range');
+    }
+
     const lobbyId = `lobby_${randomUUID()}`;
     await this.db.transaction(async (tx) => {
       await tx.insert(lobbiesTable).values({
         id: lobbyId,
-        game: input.game,
-        region: input.region,
+        gameId: gameConfig.id,
+        game: gameConfig.key,
         stakePerPlayerCents: input.stakePerPlayerCents,
+        teamCount: resolvedTeamCount,
+        playersPerTeam: resolvedPlayersPerTeam,
         status: 'OPEN',
       });
 
@@ -56,6 +177,11 @@ export class DrizzleLobbyRepository implements LobbyRepository {
       if (!lobby) {
         throw new NotFoundException('Lobby not found');
       }
+      if (lobby.teamCount > 2) {
+        throw new BadRequestException(
+          'Joining multi-team lobbies is not implemented yet',
+        );
+      }
 
       const existingPlayers = await tx
         .select()
@@ -69,7 +195,7 @@ export class DrizzleLobbyRepository implements LobbyRepository {
       const teamPlayersCount = existingPlayers.filter(
         (player) => this.toTeamSide(player.teamSide) === input.teamSide,
       ).length;
-      if (teamPlayersCount >= 5) {
+      if (teamPlayersCount >= lobby.playersPerTeam) {
         throw new BadRequestException('Team is full');
       }
 
@@ -87,11 +213,11 @@ export class DrizzleLobbyRepository implements LobbyRepository {
       const teamAReady =
         playersAfterJoin.filter(
           (player) => this.toTeamSide(player.teamSide) === TeamSide.A,
-        ).length === 5;
+        ).length === lobby.playersPerTeam;
       const teamBReady =
         playersAfterJoin.filter(
           (player) => this.toTeamSide(player.teamSide) === TeamSide.B,
-        ).length === 5;
+        ).length === lobby.playersPerTeam;
 
       let status = lobby.status;
       if (teamAReady && teamBReady && lobby.status !== 'READY') {
@@ -149,9 +275,11 @@ export class DrizzleLobbyRepository implements LobbyRepository {
   ): LobbyType {
     return {
       id: lobby.id,
+      gameId: lobby.gameId,
       game: lobby.game,
-      region: lobby.region,
       stakePerPlayerCents: lobby.stakePerPlayerCents,
+      teamCount: lobby.teamCount,
+      playersPerTeam: lobby.playersPerTeam,
       teamAUserIds: players
         .filter((player) => this.toTeamSide(player.teamSide) === TeamSide.A)
         .map((player) => player.userId),

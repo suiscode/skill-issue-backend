@@ -1,0 +1,1 @@
+ALTER TABLE "lobbies" DROP COLUMN IF EXISTS "region";

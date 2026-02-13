@@ -5,12 +5,18 @@ import { GqlAuthGuard } from '../../common/guards/gql-auth.guard';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateLobbyInput } from './dto/create-lobby.input';
 import { JoinLobbyInput } from './dto/join-lobby.input';
+import { GameType } from './entities/game.type';
 import { LobbyType } from './entities/lobby.type';
 import { LobbyService } from './lobby.service';
 
 @Resolver()
 export class LobbyResolver {
   constructor(private readonly lobbyService: LobbyService) {}
+
+  @Query(() => [GameType])
+  games(): Promise<GameType[]> {
+    return this.lobbyService.listGames();
+  }
 
   @Query(() => [LobbyType])
   lobbies(): Promise<LobbyType[]> {

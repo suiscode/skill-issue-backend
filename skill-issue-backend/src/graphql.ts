@@ -35,9 +35,10 @@ export class SignInInput {
 }
 
 export class CreateLobbyInput {
-    game: string;
-    region: string;
+    gameId: string;
     stakePerPlayerCents: number;
+    teamCount?: Nullable<number>;
+    playersPerTeam?: Nullable<number>;
 }
 
 export class JoinLobbyInput {
@@ -84,17 +85,44 @@ export abstract class IMutation {
     abstract createUser(input: CreateUserInput): User | Promise<User>;
 }
 
+export class GameLobbyRule {
+    configMode: string;
+    fixedTeamCount?: Nullable<number>;
+    fixedPlayersPerTeam?: Nullable<number>;
+    minTeamCount?: Nullable<number>;
+    maxTeamCount?: Nullable<number>;
+    minPlayersPerTeam?: Nullable<number>;
+    maxPlayersPerTeam?: Nullable<number>;
+    allowCustomTeams: boolean;
+    allowCustomPlayersPerTeam: boolean;
+    minWagerCents: number;
+    maxWagerCents: number;
+}
+
+export class Game {
+    id: string;
+    key: string;
+    name: string;
+    category: string;
+    isActive: boolean;
+    lobbyRule: GameLobbyRule;
+}
+
 export class Lobby {
     id: string;
+    gameId: string;
     game: string;
-    region: string;
     stakePerPlayerCents: number;
+    teamCount: number;
+    playersPerTeam: number;
     teamAUserIds: string[];
     teamBUserIds: string[];
     status: string;
 }
 
 export abstract class IQuery {
+    abstract games(): Game[] | Promise<Game[]>;
+
     abstract lobbies(): Lobby[] | Promise<Lobby[]>;
 
     abstract matches(): Match[] | Promise<Match[]>;

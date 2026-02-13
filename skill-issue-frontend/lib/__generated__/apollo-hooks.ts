@@ -24,9 +24,10 @@ export type AuthPayload = {
 };
 
 export type CreateLobbyInput = {
-  game: Scalars['String']['input'];
-  region: Scalars['String']['input'];
+  gameId: Scalars['ID']['input'];
+  playersPerTeam?: InputMaybe<Scalars['Int']['input']>;
   stakePerPlayerCents: Scalars['Int']['input'];
+  teamCount?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type CreateMatchInput = {
@@ -39,6 +40,31 @@ export type CreateUserInput = {
   username: Scalars['String']['input'];
 };
 
+export type Game = {
+  __typename?: 'Game';
+  category: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  key: Scalars['String']['output'];
+  lobbyRule: GameLobbyRule;
+  name: Scalars['String']['output'];
+};
+
+export type GameLobbyRule = {
+  __typename?: 'GameLobbyRule';
+  allowCustomPlayersPerTeam: Scalars['Boolean']['output'];
+  allowCustomTeams: Scalars['Boolean']['output'];
+  configMode: Scalars['String']['output'];
+  fixedPlayersPerTeam?: Maybe<Scalars['Int']['output']>;
+  fixedTeamCount?: Maybe<Scalars['Int']['output']>;
+  maxPlayersPerTeam?: Maybe<Scalars['Int']['output']>;
+  maxTeamCount?: Maybe<Scalars['Int']['output']>;
+  maxWagerCents: Scalars['Int']['output'];
+  minPlayersPerTeam?: Maybe<Scalars['Int']['output']>;
+  minTeamCount?: Maybe<Scalars['Int']['output']>;
+  minWagerCents: Scalars['Int']['output'];
+};
+
 export type JoinLobbyInput = {
   lobbyId: Scalars['ID']['input'];
   teamSide: TeamSide;
@@ -47,12 +73,14 @@ export type JoinLobbyInput = {
 export type Lobby = {
   __typename?: 'Lobby';
   game: Scalars['String']['output'];
+  gameId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
-  region: Scalars['String']['output'];
+  playersPerTeam: Scalars['Int']['output'];
   stakePerPlayerCents: Scalars['Int']['output'];
   status: Scalars['String']['output'];
   teamAUserIds: Array<Scalars['String']['output']>;
   teamBUserIds: Array<Scalars['String']['output']>;
+  teamCount: Scalars['Int']['output'];
 };
 
 export type Match = {
@@ -129,6 +157,7 @@ export type MutationSubmitMatchResultArgs = {
 
 export type Query = {
   __typename?: 'Query';
+  games: Array<Game>;
   lobbies: Array<Lobby>;
   match: Match;
   matches: Array<Match>;
@@ -210,6 +239,18 @@ export type ResendVerificationEmailMutationVariables = Exact<{
 
 
 export type ResendVerificationEmailMutation = { __typename?: 'Mutation', resendVerificationEmail: boolean };
+
+export type GamesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GamesQuery = { __typename?: 'Query', games: Array<{ __typename?: 'Game', id: string, key: string, name: string, category: string, isActive: boolean, lobbyRule: { __typename?: 'GameLobbyRule', configMode: string, fixedTeamCount?: number | null, fixedPlayersPerTeam?: number | null, minTeamCount?: number | null, maxTeamCount?: number | null, minPlayersPerTeam?: number | null, maxPlayersPerTeam?: number | null, allowCustomTeams: boolean, allowCustomPlayersPerTeam: boolean, minWagerCents: number, maxWagerCents: number } }> };
+
+export type CreateLobbyMutationVariables = Exact<{
+  input: CreateLobbyInput;
+}>;
+
+
+export type CreateLobbyMutation = { __typename?: 'Mutation', createLobby: { __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, status: string } };
 
 
 export const SignUpDocument = gql`
@@ -319,3 +360,101 @@ export function useResendVerificationEmailMutation(baseOptions?: Apollo.Mutation
 export type ResendVerificationEmailMutationHookResult = ReturnType<typeof useResendVerificationEmailMutation>;
 export type ResendVerificationEmailMutationResult = Apollo.MutationResult<ResendVerificationEmailMutation>;
 export type ResendVerificationEmailMutationOptions = Apollo.BaseMutationOptions<ResendVerificationEmailMutation, ResendVerificationEmailMutationVariables>;
+export const GamesDocument = gql`
+    query Games {
+  games {
+    id
+    key
+    name
+    category
+    isActive
+    lobbyRule {
+      configMode
+      fixedTeamCount
+      fixedPlayersPerTeam
+      minTeamCount
+      maxTeamCount
+      minPlayersPerTeam
+      maxPlayersPerTeam
+      allowCustomTeams
+      allowCustomPlayersPerTeam
+      minWagerCents
+      maxWagerCents
+    }
+  }
+}
+    `;
+
+/**
+ * __useGamesQuery__
+ *
+ * To run a query within a React component, call `useGamesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGamesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGamesQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGamesQuery(baseOptions?: Apollo.QueryHookOptions<GamesQuery, GamesQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GamesQuery, GamesQueryVariables>(GamesDocument, options);
+      }
+export function useGamesLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GamesQuery, GamesQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GamesQuery, GamesQueryVariables>(GamesDocument, options);
+        }
+// @ts-ignore
+export function useGamesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GamesQuery, GamesQueryVariables>): Apollo.UseSuspenseQueryResult<GamesQuery, GamesQueryVariables>;
+export function useGamesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GamesQuery, GamesQueryVariables>): Apollo.UseSuspenseQueryResult<GamesQuery | undefined, GamesQueryVariables>;
+export function useGamesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GamesQuery, GamesQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GamesQuery, GamesQueryVariables>(GamesDocument, options);
+        }
+export type GamesQueryHookResult = ReturnType<typeof useGamesQuery>;
+export type GamesLazyQueryHookResult = ReturnType<typeof useGamesLazyQuery>;
+export type GamesSuspenseQueryHookResult = ReturnType<typeof useGamesSuspenseQuery>;
+export type GamesQueryResult = Apollo.QueryResult<GamesQuery, GamesQueryVariables>;
+export const CreateLobbyDocument = gql`
+    mutation CreateLobby($input: CreateLobbyInput!) {
+  createLobby(input: $input) {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    status
+  }
+}
+    `;
+export type CreateLobbyMutationFn = Apollo.MutationFunction<CreateLobbyMutation, CreateLobbyMutationVariables>;
+
+/**
+ * __useCreateLobbyMutation__
+ *
+ * To run a mutation, you first call `useCreateLobbyMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useCreateLobbyMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [createLobbyMutation, { data, loading, error }] = useCreateLobbyMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useCreateLobbyMutation(baseOptions?: Apollo.MutationHookOptions<CreateLobbyMutation, CreateLobbyMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<CreateLobbyMutation, CreateLobbyMutationVariables>(CreateLobbyDocument, options);
+      }
+export type CreateLobbyMutationHookResult = ReturnType<typeof useCreateLobbyMutation>;
+export type CreateLobbyMutationResult = Apollo.MutationResult<CreateLobbyMutation>;
+export type CreateLobbyMutationOptions = Apollo.BaseMutationOptions<CreateLobbyMutation, CreateLobbyMutationVariables>;

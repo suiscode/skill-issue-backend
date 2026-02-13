@@ -1,13 +1,16 @@
-import { Field, InputType, Int } from '@nestjs/graphql';
+import { Field, ID, InputType, Int } from '@nestjs/graphql';
 
 @InputType()
 export class CreateLobbyInput {
-  @Field()
-  game: string;
-
-  @Field()
-  region: string;
+  @Field(() => ID)
+  gameId: string;
 
   @Field(() => Int)
   stakePerPlayerCents: number;
+
+  @Field(() => Int, { nullable: true })
+  teamCount?: number;
+
+  @Field(() => Int, { nullable: true })
+  playersPerTeam?: number;
 }
