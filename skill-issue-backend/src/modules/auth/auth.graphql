@@ -11,11 +11,13 @@ input SignInInput {
 
 type AuthPayload {
   accessToken: String!
+  refreshToken: String!
   user: User!
 }
 
 extend type Mutation {
   signUp(input: SignUpInput!): AuthPayload!
   signIn(input: SignInInput!): AuthPayload!
+  refreshSession(refreshToken: String!): AuthPayload!
   resendVerificationEmail(email: String!): Boolean!
 }

@@ -20,6 +20,7 @@ export type Scalars = {
 export type AuthPayload = {
   __typename?: 'AuthPayload';
   accessToken: Scalars['String']['output'];
+  refreshToken: Scalars['String']['output'];
   user: User;
 };
 
@@ -109,6 +110,7 @@ export type Mutation = {
   createMatch: Match;
   createUser: User;
   joinLobby: Lobby;
+  refreshSession: AuthPayload;
   resendVerificationEmail: Scalars['Boolean']['output'];
   signIn: AuthPayload;
   signUp: AuthPayload;
@@ -133,6 +135,11 @@ export type MutationCreateUserArgs = {
 
 export type MutationJoinLobbyArgs = {
   input: JoinLobbyInput;
+};
+
+
+export type MutationRefreshSessionArgs = {
+  refreshToken: Scalars['String']['input'];
 };
 
 
@@ -224,14 +231,21 @@ export type SignUpMutationVariables = Exact<{
 }>;
 
 
-export type SignUpMutation = { __typename?: 'Mutation', signUp: { __typename?: 'AuthPayload', accessToken: string, user: { __typename?: 'User', id: string, email: string, username: string } } };
+export type SignUpMutation = { __typename?: 'Mutation', signUp: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, email: string, username: string } } };
 
 export type SignInMutationVariables = Exact<{
   input: SignInInput;
 }>;
 
 
-export type SignInMutation = { __typename?: 'Mutation', signIn: { __typename?: 'AuthPayload', accessToken: string, user: { __typename?: 'User', id: string, email: string, username: string } } };
+export type SignInMutation = { __typename?: 'Mutation', signIn: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, email: string, username: string } } };
+
+export type RefreshSessionMutationVariables = Exact<{
+  refreshToken: Scalars['String']['input'];
+}>;
+
+
+export type RefreshSessionMutation = { __typename?: 'Mutation', refreshSession: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, email: string, username: string } } };
 
 export type ResendVerificationEmailMutationVariables = Exact<{
   email: Scalars['String']['input'];
@@ -252,11 +266,24 @@ export type CreateLobbyMutationVariables = Exact<{
 
 export type CreateLobbyMutation = { __typename?: 'Mutation', createLobby: { __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, status: string } };
 
+export type LobbiesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type LobbiesQuery = { __typename?: 'Query', lobbies: Array<{ __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, teamAUserIds: Array<string>, teamBUserIds: Array<string>, status: string }> };
+
+export type JoinLobbyMutationVariables = Exact<{
+  input: JoinLobbyInput;
+}>;
+
+
+export type JoinLobbyMutation = { __typename?: 'Mutation', joinLobby: { __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, teamAUserIds: Array<string>, teamBUserIds: Array<string>, status: string } };
+
 
 export const SignUpDocument = gql`
     mutation SignUp($input: SignUpInput!) {
   signUp(input: $input) {
     accessToken
+    refreshToken
     user {
       id
       email
@@ -295,6 +322,7 @@ export const SignInDocument = gql`
     mutation SignIn($input: SignInInput!) {
   signIn(input: $input) {
     accessToken
+    refreshToken
     user {
       id
       email
@@ -329,6 +357,45 @@ export function useSignInMutation(baseOptions?: Apollo.MutationHookOptions<SignI
 export type SignInMutationHookResult = ReturnType<typeof useSignInMutation>;
 export type SignInMutationResult = Apollo.MutationResult<SignInMutation>;
 export type SignInMutationOptions = Apollo.BaseMutationOptions<SignInMutation, SignInMutationVariables>;
+export const RefreshSessionDocument = gql`
+    mutation RefreshSession($refreshToken: String!) {
+  refreshSession(refreshToken: $refreshToken) {
+    accessToken
+    refreshToken
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+    `;
+export type RefreshSessionMutationFn = Apollo.MutationFunction<RefreshSessionMutation, RefreshSessionMutationVariables>;
+
+/**
+ * __useRefreshSessionMutation__
+ *
+ * To run a mutation, you first call `useRefreshSessionMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useRefreshSessionMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [refreshSessionMutation, { data, loading, error }] = useRefreshSessionMutation({
+ *   variables: {
+ *      refreshToken: // value for 'refreshToken'
+ *   },
+ * });
+ */
+export function useRefreshSessionMutation(baseOptions?: Apollo.MutationHookOptions<RefreshSessionMutation, RefreshSessionMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<RefreshSessionMutation, RefreshSessionMutationVariables>(RefreshSessionDocument, options);
+      }
+export type RefreshSessionMutationHookResult = ReturnType<typeof useRefreshSessionMutation>;
+export type RefreshSessionMutationResult = Apollo.MutationResult<RefreshSessionMutation>;
+export type RefreshSessionMutationOptions = Apollo.BaseMutationOptions<RefreshSessionMutation, RefreshSessionMutationVariables>;
 export const ResendVerificationEmailDocument = gql`
     mutation ResendVerificationEmail($email: String!) {
   resendVerificationEmail(email: $email)
@@ -458,3 +525,94 @@ export function useCreateLobbyMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateLobbyMutationHookResult = ReturnType<typeof useCreateLobbyMutation>;
 export type CreateLobbyMutationResult = Apollo.MutationResult<CreateLobbyMutation>;
 export type CreateLobbyMutationOptions = Apollo.BaseMutationOptions<CreateLobbyMutation, CreateLobbyMutationVariables>;
+export const LobbiesDocument = gql`
+    query Lobbies {
+  lobbies {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}
+    `;
+
+/**
+ * __useLobbiesQuery__
+ *
+ * To run a query within a React component, call `useLobbiesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useLobbiesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useLobbiesQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useLobbiesQuery(baseOptions?: Apollo.QueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+      }
+export function useLobbiesLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+        }
+// @ts-ignore
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>): Apollo.UseSuspenseQueryResult<LobbiesQuery, LobbiesQueryVariables>;
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>): Apollo.UseSuspenseQueryResult<LobbiesQuery | undefined, LobbiesQueryVariables>;
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+        }
+export type LobbiesQueryHookResult = ReturnType<typeof useLobbiesQuery>;
+export type LobbiesLazyQueryHookResult = ReturnType<typeof useLobbiesLazyQuery>;
+export type LobbiesSuspenseQueryHookResult = ReturnType<typeof useLobbiesSuspenseQuery>;
+export type LobbiesQueryResult = Apollo.QueryResult<LobbiesQuery, LobbiesQueryVariables>;
+export const JoinLobbyDocument = gql`
+    mutation JoinLobby($input: JoinLobbyInput!) {
+  joinLobby(input: $input) {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}
+    `;
+export type JoinLobbyMutationFn = Apollo.MutationFunction<JoinLobbyMutation, JoinLobbyMutationVariables>;
+
+/**
+ * __useJoinLobbyMutation__
+ *
+ * To run a mutation, you first call `useJoinLobbyMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useJoinLobbyMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [joinLobbyMutation, { data, loading, error }] = useJoinLobbyMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useJoinLobbyMutation(baseOptions?: Apollo.MutationHookOptions<JoinLobbyMutation, JoinLobbyMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<JoinLobbyMutation, JoinLobbyMutationVariables>(JoinLobbyDocument, options);
+      }
+export type JoinLobbyMutationHookResult = ReturnType<typeof useJoinLobbyMutation>;
+export type JoinLobbyMutationResult = Apollo.MutationResult<JoinLobbyMutation>;
+export type JoinLobbyMutationOptions = Apollo.BaseMutationOptions<JoinLobbyMutation, JoinLobbyMutationVariables>;

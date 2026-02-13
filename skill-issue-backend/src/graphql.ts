@@ -64,6 +64,7 @@ export class CreateUserInput {
 
 export class AuthPayload {
     accessToken: string;
+    refreshToken: string;
     user: User;
 }
 
@@ -71,6 +72,8 @@ export abstract class IMutation {
     abstract signUp(input: SignUpInput): AuthPayload | Promise<AuthPayload>;
 
     abstract signIn(input: SignInInput): AuthPayload | Promise<AuthPayload>;
+
+    abstract refreshSession(refreshToken: string): AuthPayload | Promise<AuthPayload>;
 
     abstract resendVerificationEmail(email: string): boolean | Promise<boolean>;
 

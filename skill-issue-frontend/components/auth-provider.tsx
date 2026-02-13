@@ -12,7 +12,11 @@ type AuthContextValue = {
   user: AuthUser | null
   isAuthenticated: boolean
   isHydrating: boolean
-  setSession: (payload: { accessToken: string; user: AuthUser }) => void
+  setSession: (payload: {
+    accessToken: string
+    refreshToken: string
+    user: AuthUser
+  }) => void
   signOut: () => void
 }
 
@@ -25,13 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser")
     const storedToken = localStorage.getItem("accessToken")
-    if (storedUser && storedToken) {
+    const storedRefreshToken = localStorage.getItem("refreshToken")
+    if (storedUser && storedToken && storedRefreshToken) {
       try {
         setUser(JSON.parse(storedUser) as AuthUser)
       } catch {
         localStorage.removeItem("currentUser")
         localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
       }
+    } else {
+      localStorage.removeItem("currentUser")
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("refreshToken")
     }
     setIsHydrating(false)
   }, [])
@@ -43,11 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isHydrating,
       setSession: (payload) => {
         localStorage.setItem("accessToken", payload.accessToken)
+        localStorage.setItem("refreshToken", payload.refreshToken)
         localStorage.setItem("currentUser", JSON.stringify(payload.user))
         setUser(payload.user)
       },
       signOut: () => {
         localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
         localStorage.removeItem("currentUser")
         setUser(null)
       },

@@ -49,6 +49,7 @@ export class AuthService {
 
       return {
         accessToken: '',
+        refreshToken: '',
         user,
       };
     } catch {
@@ -66,7 +67,12 @@ export class AuthService {
         password: input.password,
       });
 
-    if (error || !data.user || !data.session?.access_token) {
+    if (
+      error ||
+      !data.user ||
+      !data.session?.access_token ||
+      !data.session.refresh_token
+    ) {
       throw new UnauthorizedException('Invalid credentials');
     }
     if (!data.user.email_confirmed_at) {
@@ -82,6 +88,34 @@ export class AuthService {
 
     return {
       accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      user,
+    };
+  }
+
+  async refreshSession(refreshToken: string): Promise<AuthPayloadType> {
+    const { data, error } =
+      await this.supabaseAuthService.publicClient.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+
+    if (
+      error ||
+      !data.user ||
+      !data.session?.access_token ||
+      !data.session.refresh_token
+    ) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersService.findById(data.user.id);
+    if (!user) {
+      throw new UnauthorizedException('User profile not found');
+    }
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
       user,
     };
   }
@@ -101,3 +135,4 @@ export class AuthService {
     return true;
   }
 }
+

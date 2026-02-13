@@ -22,6 +22,14 @@ export class AuthResolver {
   }
 
   @Public()
+  @Mutation(() => AuthPayloadType)
+  refreshSession(
+    @Args('refreshToken') refreshToken: string,
+  ): Promise<AuthPayloadType> {
+    return this.authService.refreshSession(refreshToken);
+  }
+
+  @Public()
   @Mutation(() => Boolean)
   resendVerificationEmail(@Args('email') email: string): Promise<boolean> {
     return this.authService.resendVerificationEmail(email);

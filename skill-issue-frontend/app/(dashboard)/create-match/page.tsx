@@ -6,9 +6,11 @@ import { Swords, Trophy, Users, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TopNavbar } from "@/components/top-navbar"
+import { useAuth } from "@/components/auth-provider"
 import {
   useCreateLobbyMutation,
   useGamesQuery,
+  useLobbiesQuery,
 } from "@/lib/__generated__/apollo-hooks"
 import {
   Select,
@@ -18,22 +20,40 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { toast } from "sonner"
 
 const WAGER_PRESETS = [5000, 10000, 20000] as const
 
 export default function CreateMatchPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { data, loading: loadingGames, error: gamesError } = useGamesQuery()
+  const { data: lobbiesData } = useLobbiesQuery()
   const [createLobby, { loading: creatingLobby }] = useCreateLobbyMutation()
 
   const [betAmount, setBetAmount] = useState(5000)
+  const [customBetInput, setCustomBetInput] = useState("5000")
   const [selectedWagerOption, setSelectedWagerOption] = useState<number | "custom">(5000)
   const [selectedGameId, setSelectedGameId] = useState("")
   const [teamCount, setTeamCount] = useState(2)
   const [playersPerTeam, setPlayersPerTeam] = useState(5)
   const [submitError, setSubmitError] = useState("")
+  const [hasShownOpenLobbyToast, setHasShownOpenLobbyToast] = useState(false)
 
   const games = useMemo(() => data?.games ?? [], [data?.games])
+  const myOpenLobby = useMemo(
+    () => {
+      if (!user?.id) {
+        return null
+      }
+      return (
+        lobbiesData?.lobbies.find(
+          (lobby) => lobby.status === "OPEN" && lobby.teamAUserIds.includes(user.id),
+        ) ?? null
+      )
+    },
+    [lobbiesData?.lobbies, user?.id],
+  )
   const selectedGame = games.find((game) => game.id === selectedGameId)
   const selectedRule = selectedGame?.lobbyRule
   const isCustomConfig = selectedRule?.configMode === "CUSTOM_BR"
@@ -61,6 +81,7 @@ export default function CreateMatchPage() {
       const firstValidPreset =
         WAGER_PRESETS.find((preset) => preset >= minWager && preset <= maxWager) ?? minWager
       setBetAmount(firstValidPreset)
+      setCustomBetInput(String(firstValidPreset))
       setSelectedWagerOption(
         WAGER_PRESETS.includes(firstValidPreset as (typeof WAGER_PRESETS)[number])
           ? firstValidPreset
@@ -69,12 +90,37 @@ export default function CreateMatchPage() {
     }
   }, [selectedRule, betAmount, minWager, maxWager])
 
+  useEffect(() => {
+    if (!myOpenLobby || hasShownOpenLobbyToast) {
+      return
+    }
+
+    toast.info("You already have an open lobby.", {
+      description: "Finish or close it before creating another one.",
+      action: {
+        label: "Open lobby",
+        onClick: () => router.push(`/lobby/${myOpenLobby.id}`),
+      },
+    })
+    setHasShownOpenLobbyToast(true)
+  }, [hasShownOpenLobbyToast, myOpenLobby, router])
+
   const totalPool = betAmount * teamCount * playersPerTeam
   const potentialWinnings = totalPool * 0.9
 
   const onCreateLobby = async () => {
     if (!selectedGame || !selectedRule) {
       setSubmitError("Please select an active game.")
+      return
+    }
+    if (myOpenLobby) {
+      setSubmitError("You already have an open lobby. Open it from the toast.")
+      toast.info("You already have an open lobby.", {
+        action: {
+          label: "Open lobby",
+          onClick: () => router.push(`/lobby/${myOpenLobby.id}`),
+        },
+      })
       return
     }
 
@@ -96,8 +142,20 @@ export default function CreateMatchPage() {
       }
       router.push(`/lobby/${lobbyId}`)
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create lobby."
+      const openLobbyMatch = message.match(/lobby_[a-zA-Z0-9-]+/)
+      if (openLobbyMatch) {
+        const existingLobbyId = openLobbyMatch[0]
+        toast.info("You already have an open lobby.", {
+          action: {
+            label: "Open lobby",
+            onClick: () => router.push(`/lobby/${existingLobbyId}`),
+          },
+        })
+      }
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to create lobby.",
+        message,
       )
     }
   }
@@ -205,7 +263,9 @@ export default function CreateMatchPage() {
                       variant={selectedWagerOption === preset ? "default" : "outline"}
                       onClick={() => {
                         setSelectedWagerOption(preset)
-                        setBetAmount(Math.min(maxWager, Math.max(minWager, preset)))
+                        const clampedPreset = Math.min(maxWager, Math.max(minWager, preset))
+                        setBetAmount(clampedPreset)
+                        setCustomBetInput(String(clampedPreset))
                       }}
                     >
                       {preset.toLocaleString()}
@@ -214,7 +274,10 @@ export default function CreateMatchPage() {
                   <Button
                     type="button"
                     variant={selectedWagerOption === "custom" ? "default" : "outline"}
-                    onClick={() => setSelectedWagerOption("custom")}
+                    onClick={() => {
+                      setSelectedWagerOption("custom")
+                      setCustomBetInput(String(betAmount))
+                    }}
                   >
                     Custom
                   </Button>
@@ -225,14 +288,16 @@ export default function CreateMatchPage() {
                       type="number"
                       min={minWager}
                       max={maxWager}
-                      value={betAmount}
+                      value={customBetInput}
                       onChange={(event) => {
-                        const value = Number(event.target.value)
-                        setBetAmount(Number.isNaN(value) ? minWager : value)
+                        setCustomBetInput(event.target.value)
                       }}
                       onBlur={() => {
-                        const clamped = Math.min(maxWager, Math.max(minWager, betAmount))
+                        const parsed = Number(customBetInput)
+                        const numeric = Number.isFinite(parsed) ? parsed : minWager
+                        const clamped = Math.min(maxWager, Math.max(minWager, numeric))
                         setBetAmount(clamped)
+                        setCustomBetInput(String(clamped))
                       }}
                       placeholder="Enter custom wager in MNT"
                     />
@@ -243,11 +308,23 @@ export default function CreateMatchPage() {
               {submitError ? (
                 <p className="text-sm text-destructive">{submitError}</p>
               ) : null}
+              {myOpenLobby ? (
+                <p className="text-sm text-muted-foreground">
+                  You already have an open lobby:{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline underline-offset-4"
+                    onClick={() => router.push(`/lobby/${myOpenLobby.id}`)}
+                  >
+                    Open it
+                  </button>
+                </p>
+              ) : null}
               <Button
                 size="lg"
                 className="glow-md bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
                 onClick={onCreateLobby}
-                disabled={creatingLobby || loadingGames || !selectedGame}
+                disabled={creatingLobby || loadingGames || !selectedGame || Boolean(myOpenLobby)}
               >
                 {creatingLobby ? "Creating Lobby..." : "Create Lobby"}
               </Button>

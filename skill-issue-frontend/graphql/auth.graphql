@@ -1,6 +1,7 @@
 mutation SignUp($input: SignUpInput!) {
   signUp(input: $input) {
     accessToken
+    refreshToken
     user {
       id
       email
@@ -12,6 +13,19 @@ mutation SignUp($input: SignUpInput!) {
 mutation SignIn($input: SignInInput!) {
   signIn(input: $input) {
     accessToken
+    refreshToken
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+
+mutation RefreshSession($refreshToken: String!) {
+  refreshSession(refreshToken: $refreshToken) {
+    accessToken
+    refreshToken
     user {
       id
       email
