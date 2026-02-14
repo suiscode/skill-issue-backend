@@ -252,6 +252,18 @@ export type CreateLobbyMutationVariables = Exact<{
 
 export type CreateLobbyMutation = { __typename?: 'Mutation', createLobby: { __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, status: string } };
 
+export type LobbiesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type LobbiesQuery = { __typename?: 'Query', lobbies: Array<{ __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, teamAUserIds: Array<string>, teamBUserIds: Array<string>, status: string }> };
+
+export type JoinLobbyMutationVariables = Exact<{
+  input: JoinLobbyInput;
+}>;
+
+
+export type JoinLobbyMutation = { __typename?: 'Mutation', joinLobby: { __typename?: 'Lobby', id: string, gameId: string, game: string, stakePerPlayerCents: number, teamCount: number, playersPerTeam: number, teamAUserIds: Array<string>, teamBUserIds: Array<string>, status: string } };
+
 
 export const SignUpDocument = gql`
     mutation SignUp($input: SignUpInput!) {
@@ -458,3 +470,94 @@ export function useCreateLobbyMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateLobbyMutationHookResult = ReturnType<typeof useCreateLobbyMutation>;
 export type CreateLobbyMutationResult = Apollo.MutationResult<CreateLobbyMutation>;
 export type CreateLobbyMutationOptions = Apollo.BaseMutationOptions<CreateLobbyMutation, CreateLobbyMutationVariables>;
+export const LobbiesDocument = gql`
+    query Lobbies {
+  lobbies {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}
+    `;
+
+/**
+ * __useLobbiesQuery__
+ *
+ * To run a query within a React component, call `useLobbiesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useLobbiesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useLobbiesQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useLobbiesQuery(baseOptions?: Apollo.QueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+      }
+export function useLobbiesLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+        }
+// @ts-ignore
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>): Apollo.UseSuspenseQueryResult<LobbiesQuery, LobbiesQueryVariables>;
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>): Apollo.UseSuspenseQueryResult<LobbiesQuery | undefined, LobbiesQueryVariables>;
+export function useLobbiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<LobbiesQuery, LobbiesQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<LobbiesQuery, LobbiesQueryVariables>(LobbiesDocument, options);
+        }
+export type LobbiesQueryHookResult = ReturnType<typeof useLobbiesQuery>;
+export type LobbiesLazyQueryHookResult = ReturnType<typeof useLobbiesLazyQuery>;
+export type LobbiesSuspenseQueryHookResult = ReturnType<typeof useLobbiesSuspenseQuery>;
+export type LobbiesQueryResult = Apollo.QueryResult<LobbiesQuery, LobbiesQueryVariables>;
+export const JoinLobbyDocument = gql`
+    mutation JoinLobby($input: JoinLobbyInput!) {
+  joinLobby(input: $input) {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}
+    `;
+export type JoinLobbyMutationFn = Apollo.MutationFunction<JoinLobbyMutation, JoinLobbyMutationVariables>;
+
+/**
+ * __useJoinLobbyMutation__
+ *
+ * To run a mutation, you first call `useJoinLobbyMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useJoinLobbyMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [joinLobbyMutation, { data, loading, error }] = useJoinLobbyMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useJoinLobbyMutation(baseOptions?: Apollo.MutationHookOptions<JoinLobbyMutation, JoinLobbyMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<JoinLobbyMutation, JoinLobbyMutationVariables>(JoinLobbyDocument, options);
+      }
+export type JoinLobbyMutationHookResult = ReturnType<typeof useJoinLobbyMutation>;
+export type JoinLobbyMutationResult = Apollo.MutationResult<JoinLobbyMutation>;
+export type JoinLobbyMutationOptions = Apollo.BaseMutationOptions<JoinLobbyMutation, JoinLobbyMutationVariables>;

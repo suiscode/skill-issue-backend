@@ -3,22 +3,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
 interface Player {
+  id?: string
   name: string
-  avatar: string
-  ready: boolean
-  rank: string
+  avatar?: string
+  ready?: boolean
+  rank?: string
 }
 
 export function TeamPanel({
   team,
   players,
   color,
+  maxPlayers = 5,
 }: {
   team: string
   players: Player[]
   color: "primary" | "destructive"
+  maxPlayers?: number
 }) {
-  const emptySlots = 5 - players.length
+  const emptySlots = Math.max(0, maxPlayers - players.length)
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -50,12 +53,17 @@ export function TeamPanel({
       <div className="divide-y divide-border">
         {players.map((player) => (
           <div
-            key={player.name}
+            key={player.id ?? player.name}
             className="flex items-center justify-between px-5 py-3.5"
           >
             <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8 border border-border">
-                <AvatarImage src={player.avatar || "/placeholder.svg"} />
+                <AvatarImage
+                  src={
+                    player.avatar ??
+                    `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(player.name)}`
+                  }
+                />
                 <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
                   {player.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
@@ -64,9 +72,11 @@ export function TeamPanel({
                 <span className="text-sm font-medium text-foreground">
                   {player.name}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {player.rank}
-                </span>
+                {player.rank ? (
+                  <span className="text-xs text-muted-foreground">
+                    {player.rank}
+                  </span>
+                ) : null}
               </div>
             </div>
             {player.ready ? (

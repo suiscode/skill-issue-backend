@@ -32,3 +32,31 @@ mutation CreateLobby($input: CreateLobbyInput!) {
     status
   }
 }
+
+query Lobbies {
+  lobbies {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}
+
+mutation JoinLobby($input: JoinLobbyInput!) {
+  joinLobby(input: $input) {
+    id
+    gameId
+    game
+    stakePerPlayerCents
+    teamCount
+    playersPerTeam
+    teamAUserIds
+    teamBUserIds
+    status
+  }
+}

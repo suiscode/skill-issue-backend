@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { TeamSide } from '../../common/constants/team-side.enum';
@@ -78,6 +78,27 @@ export class DrizzleLobbyRepository implements LobbyRepository {
     input: CreateLobbyInput,
     hostUserId: string,
   ): Promise<LobbyType> {
+    const [existingOpenLobby] = await this.db
+      .select({
+        lobbyId: lobbiesTable.id,
+      })
+      .from(lobbyPlayersTable)
+      .innerJoin(lobbiesTable, eq(lobbiesTable.id, lobbyPlayersTable.lobbyId))
+      .where(
+        and(
+          eq(lobbyPlayersTable.userId, hostUserId),
+          eq(lobbyPlayersTable.teamSide, TeamSide.A),
+          eq(lobbiesTable.status, 'OPEN'),
+        ),
+      )
+      .limit(1);
+
+    if (existingOpenLobby) {
+      throw new BadRequestException(
+        `You already have an open lobby: ${existingOpenLobby.lobbyId}`,
+      );
+    }
+
     const [gameConfig] = await this.db
       .select({
         id: gamesTable.id,

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Sora, IBM_Plex_Mono } from "next/font/google"
 import { AppApolloProvider } from "@/components/apollo-provider"
 import { AuthProvider } from "@/components/auth-provider"
+import { Toaster } from "@/components/ui/sonner"
 
 import "./globals.css"
 
@@ -38,7 +39,10 @@ export default function RootLayout({
         className={`${sora.variable} ${ibmPlexMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
-          <AppApolloProvider>{children}</AppApolloProvider>
+          <AppApolloProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AppApolloProvider>
         </AuthProvider>
       </body>
     </html>
